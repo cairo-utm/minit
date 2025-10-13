@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Suara ke Teks Minit Mesyuarat CAIRO UTM</title>
+    <!-- Muat Tailwind CSS untuk styling yang mudah dan responsif -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Muat marked.js untuk menukar Markdown kepada HTML -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f3f4f6; /* Warna latar belakang kelabu muda */
+            padding: 20px; /* Tambah padding untuk responsif pada skrin kecil */
+        }
+        .container {
+            max-width: 90%;
+            width: 700px; /* Lebarkan sedikit kontena */
+            box-sizing: border-box; /* Pastikan padding termasuk dalam lebar */
+            position: relative; /* Diperlukan untuk kedudukan butang manual */
+        }
+        /* Style untuk butang mikrofon (ikon mikrofon) */
+        .microphone-icon {
+            font-size: 2.5rem; /* Saiz ikon yang lebih besar */
+            color: #ffffff; /* Warna putih */
+            transition: transform 0.2s ease-in-out;
+        }
+        .microphone-icon.recording {
+            color: #ef4444; /* Warna merah apabila merakam */
+            transform: scale(1.1); /* Sedikit membesar apabila merakam */
+        }
+        /* Style untuk input dan textarea */
+        input[type="text"], input[type="date"], input[type="time"], textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+            margin-bottom: 15px;
+            font-size: 1rem;
+            box-sizing: border-box; /* Pastikan padding termasuk dalam lebar */
+        }
+        /* Output area for rich text */
+        #meetingMinutesOutput, #whatsappMinutesOutput {
+            width: 100%;
+            padding: 15px; /* Lebih padding untuk rich text */
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+            margin-bottom: 15px;
+            font-size: 1rem;
+            min-height: 200px; /* Ketinggian minimum yang lebih besar */
+            background-color: #f9fafb; /* Warna latar belakang lebih cerah */
+            overflow-y: auto; /* Boleh scroll jika kandungan panjang */
+            line-height: 1.6; /* Ketinggian baris yang lebih baik untuk pembacaan */
+            white-space: pre-wrap; /* Preserve whitespace for formatting */
+        }
+        /* Styling for markdown generated elements */
+        #meetingMinutesOutput h1 {
+            font-size: 1.875rem; /* text-3xl */
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        #meetingMinutesOutput h2 {
+            font-size: 1.5rem; /* text-2xl */
+            font-weight: bold;
+            margin-top: 1.5em;
+            margin-bottom: 0.8em;
+            color: #1f2937;
+        }
+        #meetingMinutesOutput p {
+            margin-bottom: 1em;
+            color: #374151;
+        }
+        #meetingMinutesOutput ul, #meetingMinutesOutput ol {
+            list-style-type: none; /* Remove default bullets */
+            padding-left: 0;
+            margin-bottom: 1em;
+            color: #374151;
+        }
+        /* Memastikan tiada jarak tambahan antara item senarai */
+        #meetingMinutesOutput li {
+            margin-bottom: 0; 
+        }
+        #meetingMinutesOutput li p {
+             margin-bottom: 0;
+        }
+        #meetingMinutesOutput table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1em;
+            margin-bottom: 1em;
+            background-color: #ffffff;
+            border: 1px solid #e5e7eb;
+        }
+        #meetingMinutesOutput th, #meetingMinutesOutput td {
+            border: 1px solid #e5e7eb;
+            padding: 10px;
+            text-align: left;
+        }
+        #meetingMinutesOutput th {
+            background-color: #e0e7ff; /* Latar belakang header jadual */
+            font-weight: 600;
+            color: #374151;
+        }
+        #meetingMinutesOutput hr {
+            margin-top: 2em;
+            margin-bottom: 1em;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #4b5563;
+        }
+        /* Style untuk butang aksi */
+        .action-button {
+            background-color: #10b981; /* Hijau */
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 9999px; /* Rounded-full */
+            color: white;
+            transition: background-color 0.3s ease-in-out;
+            cursor: pointer; /* Menunjukkan ia boleh diklik */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px; /* Ruang antara ikon dan teks */
+            white-space: nowrap; /* Elak teks butang daripada melingkar */
+        }
+        .action-button:hover {
+            background-color: #059669; /* Hijau gelap */
+        }
+        .copy-transcript-button {
+            background-color: #6366f1; /* Indigo */
+        }
+        .copy-transcript-button:hover {
+            background-color: #4f46e5; /* Indigo gelap */
+        }
+        .download-button {
+            background-color: #007bff; /* Biru terang untuk Word */
+        }
+        .download-button:hover {
+            background-color: #0056b3; /* Biru gelap */
+        }
+        .rtf-download-button {
+            background-color: #8b5cf6; /* Ungu */
+        }
+        .rtf-download-button:hover {
+            background-color: #7c3aed; /* Ungu gelap */
+        }
+        .whatsapp-button {
+            background-color: #25d366; /* Warna WhatsApp Green */
+        }
+        .whatsapp-button:hover {
+            background-color: #1da851; /* Warna WhatsApp Green yang lebih gelap */
+        }
+        .action-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        /* Butang Bahasa */
+        .lang-button.active {
+            background-color: #4f46e5; /* Indigo gelap */
+            color: white;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        /* Loading spinner */
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Modal styling */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            overflow-y: auto; /* Boleh scroll jika kandungan panjang */
+            padding: 20px;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh; /* Hadkan ketinggian modal */
+            overflow-y: auto; /* Boleh scroll kandungan modal */
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        .modal-content h1, .modal-content h2 {
+            font-weight: bold;
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            color: #1f2937;
+        }
+        .modal-content h1 { font-size: 1.75rem; }
+        .modal-content h2 { font-size: 1.35rem; }
+        .modal-content p, .modal-content ul, .modal-content ol {
+            margin-bottom: 1em;
+            color: #374151;
+        }
+        .modal-content ul, .modal-content ol {
+            list-style-type: disc;
+            margin-left: 20px;
+        }
+        .modal-content ol {
+            list-style-type: decimal;
+        }
+        .modal-close-button {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #4b5563;
+            transition: color 0.2s;
+        }
+        .modal-close-button:hover {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container bg-white p-8 rounded-xl shadow-lg flex flex-col items-center">
+        <!-- Butang Manual Pengguna di sudut kanan atas -->
+        <button id="userManualBtn" class="absolute top-4 right-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-full text-sm flex items-center space-x-2 transition duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4">
+                <path fill-rule="evenodd" d="M11.47 2.47a.75.75 0 011.06 0l7.5 7.5a.75.75 0 11-1.06 1.06l-6.22-6.22V21a.75.75 0 01-1.5 0V4.81L4.03 11.03a.75.75 0 01-1.06-1.06l7.5-7.5z" clip-rule="evenodd" />
+            </svg>
+            <span>Manual Pengguna</span>
+        </button>
+
+        <!-- Logo CAIRO UTM dari URL -->
+        <img src="https://research.utm.my/wp-content/uploads/sites/26/2022/06/logo.png" alt="CAIRO UTM Logo" class="mb-6 w-48 h-auto object-contain" onerror="this.onerror=null;this.src='https://placehold.co/192x78/E0E7FF/374151?text=Logo+Tidak+Dapat+Dimuatkan';">
+        
+        <h1 class="text-3xl font-bold mb-6 text-gray-800 text-center">Aplikasi Suara ke Teks Minit Mesyuarat</h1>
+
+        <!-- Butiran Mesyuarat -->
+        <div class="w-full mb-6">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-700">Butiran Mesyuarat</h2>
+            <label for="meetingTitle">Tajuk Mesyuarat (dijana auto jika kosong):</label>
+            <input type="text" id="meetingTitle" placeholder="Contoh: Mesyuarat Perancangan Projek Q3">
+
+            <label for="meetingDate">Tarikh:</label>
+            <input type="date" id="meetingDate"> <!-- Praisi dengan tarikh semasa oleh JS -->
+
+            <label for="meetingTime">Masa:</label>
+            <input type="time" id="meetingTime"> <!-- Praisi dengan masa semasa oleh JS -->
+
+            <label for="meetingVenue">Tempat:</label>
+            <input type="text" id="meetingVenue" placeholder="Contoh: Bilik Mesyuarat CAIRO">
+
+            <label for="attendees">Ahli Hadir (dikesan auto dari transkrip, atau isi manual):</label>
+            <input type="text" id="attendees" placeholder="Contoh: Ali Bin Abu, Siti Binti Salim">
+        </div>
+
+        <!-- Butang untuk memulakan/menghentikan rakaman -->
+        <button id="startStopBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-full flex items-center justify-center space-x-2 shadow-md transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">
+            <svg id="microphoneIcon" class="microphone-icon w-10 h-10" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0A7.001 7.001 0 009 14.93V17h4v-2.07A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0A7.001 7.001 0 009 14.93V17h4v-2.07z" clip-rule="evenodd" />
+            </svg>
+            <span id="buttonText" class="text-lg">Mula Rakaman</span>
+            <div id="loadingSpinner" class="loading-spinner hidden"></div>
+        </button>
+        
+        <!-- Pemisah ATAU -->
+        <div class="my-6 flex items-center w-full">
+            <div class="flex-grow border-t border-gray-300"></div>
+            <span class="flex-shrink mx-4 text-gray-500 font-semibold">ATAU</span>
+            <div class="flex-grow border-t border-gray-300"></div>
+        </div>
+        
+        <!-- Seksyen Input Transkrip Manual -->
+        <div class="w-full mb-6">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-700">Masukkan Transkrip Manual</h2>
+            <label for="manualTranscript">Tampal atau taip transkrip di sini (cth: Nama: Ucapan):</label>
+            <textarea id="manualTranscript" class="bg-white p-4 rounded-lg border border-gray-300 text-gray-700 text-base" rows="8" placeholder="Contoh: Ali: Selamat pagi semua. Kita mulakan mesyuarat..."></textarea>
+            <button id="generateFromTextBtn" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-full flex items-center justify-center space-x-2 shadow-md transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+                    <path d="M12.378 1.602a.75.75 0 00-.756 0L3 6.632l9 5.25 9-5.25-8.622-5.03zM21.75 7.93l-9 5.25v9l8.628-5.032a.75.75 0 00.372-.648V7.93zM11.25 22.18v-9l-9-5.25v8.57a.75.75 0 00.372.648l8.628 5.032z" />
+                </svg>
+                <span>Jana Minit dari Teks</span>
+            </button>
+        </div>
+
+        <!-- Kawasan untuk memaparkan teks yang ditranskripsi dan minit mesyuarat -->
+        <div class="mt-8 w-full">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-700">Transkripsi & Minit</h2>
+             <!-- Pilihan Bahasa -->
+            <div class="w-full mb-4 flex justify-center space-x-4">
+                <button id="lang-bm-btn" class="lang-button active bg-indigo-600 text-white font-semibold py-2 px-5 rounded-full transition duration-300">Bahasa Malaysia</button>
+                <button id="lang-en-btn" class="lang-button bg-gray-300 text-gray-700 font-semibold py-2 px-5 rounded-full transition duration-300">English</button>
+            </div>
+            <label for="resultDisplay">Transkripsi Penuh:</label>
+            <textarea id="resultDisplay" readonly class="bg-gray-100 p-4 rounded-lg border border-gray-200 text-gray-700 text-base italic" placeholder="Teks yang ditranskripsi akan muncul di sini."></textarea>
+            
+            <label>Minit Mesyuarat (Dijana AI, Rich Text):</label>
+            <div id="meetingMinutesOutput" class="bg-gray-100 rounded-lg border border-gray-200 text-gray-700 text-base">
+                Minit mesyuarat akan diformatkan di sini oleh AI.
+            </div>
+
+            <label>Minit Mesyuarat untuk WhatsApp (Ringkas):</label>
+            <div id="whatsappMinutesOutput" class="bg-gray-100 rounded-lg border border-gray-200 text-gray-700 text-base min-h-[100px]">
+                Versi ringkas minit untuk WhatsApp akan dijana di sini.
+            </div>
+            
+            <!-- Butang Salin Transkrip, Salin Minit, Muat Turun Minit & Salin Mesej WhatsApp -->
+            <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mt-4 w-full justify-center flex-wrap">
+                <button id="copyTranscriptBtn" class="action-button copy-transcript-button w-full md:w-auto" disabled>
+                    <span>Salin Transkrip</span>
+                </button>
+                <button id="copyMinutesBtn" class="action-button w-full md:w-auto hover:bg-emerald-700" disabled>
+                    <span>Salin Minit</span>
+                </button>
+                <button id="downloadMinutesBtn" class="action-button download-button w-full md:w-auto" disabled>
+                    <span>Muat Turun (.doc)</span>
+                </button>
+                 <button id="downloadRtfBtn" class="action-button rtf-download-button w-full md:w-auto" disabled>
+                    <span>Muat Turun (.rtf)</span>
+                </button>
+                <button id="whatsappShareBtn" class="action-button whatsapp-button w-full md:w-auto" disabled>
+                    <span>Salin Mesej WhatsApp</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Kawasan mesej untuk maklum balas atau ralat -->
+        <div id="messageBox" class="mt-4 text-sm text-red-600 text-center hidden"></div>
+
+        <!-- Copyright & Contact CAIRO UTM -->
+        <div class="mt-6 text-center text-xs text-gray-500">
+            <p>&copy; 2025 CAIRO UTM. Hak Cipta Terpelihara.</p>
+            <p class="mt-1">
+                Website: <a href="https://research.utm.my/cairo" target="_blank" class="text-indigo-600 hover:underline">https://research.utm.my/cairo</a> | 
+                Email: <a href="mailto:cairo@utm.my" class="text-indigo-600 hover:underline">cairo@utm.my</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Modal untuk Manual Pengguna -->
+    <div id="userManualModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="closeModalBtn" class="modal-close-button">&times;</button>
+            <div id="userManualContent" class="prose max-w-none">
+                <!-- Kandungan README akan dimuatkan di sini oleh JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Pastikan kod dijalankan selepas keseluruhan dokumen HTML dimuatkan
+        window.onload = function() {
+            // Dapatkan rujukan elemen DOM
+            const startStopBtn = document.getElementById('startStopBtn');
+            const buttonText = document.getElementById('buttonText');
+            const microphoneIcon = document.getElementById('microphoneIcon');
+            const resultDisplay = document.getElementById('resultDisplay');
+            const meetingTitleInput = document.getElementById('meetingTitle');
+            const meetingDateInput = document.getElementById('meetingDate');
+            const meetingTimeInput = document.getElementById('meetingTime');
+            const meetingVenueInput = document.getElementById('meetingVenue');
+            const attendeesInput = document.getElementById('attendees');
+            const meetingMinutesOutputDiv = document.getElementById('meetingMinutesOutput');
+            const whatsappMinutesOutputDiv = document.getElementById('whatsappMinutesOutput');
+            const copyTranscriptBtn = document.getElementById('copyTranscriptBtn');
+            const copyMinutesBtn = document.getElementById('copyMinutesBtn');
+            const downloadMinutesBtn = document.getElementById('downloadMinutesBtn');
+            const downloadRtfBtn = document.getElementById('downloadRtfBtn');
+            const whatsappShareBtn = document.getElementById('whatsappShareBtn');
+            const messageBox = document.getElementById('messageBox');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+
+            // Elemen Input Manual
+            const manualTranscriptInput = document.getElementById('manualTranscript');
+            const generateFromTextBtn = document.getElementById('generateFromTextBtn');
+            
+            // Elemen Bahasa
+            const langBmBtn = document.getElementById('lang-bm-btn');
+            const langEnBtn = document.getElementById('lang-en-btn');
+
+            // Elemen Modal Manual Pengguna
+            const userManualBtn = document.getElementById('userManualBtn');
+            const userManualModal = document.getElementById('userManualModal');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const userManualContent = document.getElementById('userManualContent');
+
+            // Pembolehubah status dan data
+            let recognition;
+            let isRecording = false;
+            let userStoppedRecording = false; // Flag to track user action
+            let fullTranscript = '';
+            let aiGeneratedMarkdownMinutes = '';
+            let aiGeneratedWhatsappText = '';
+            let selectedLanguage = 'ms-MY'; // Bahasa default
+
+            // Praisi tarikh dan masa semasa
+            const now = new Date();
+            meetingDateInput.value = now.toISOString().split('T')[0];
+            meetingTimeInput.value = now.toTimeString().slice(0, 5);
+
+            // Kandungan README dalam format Markdown (akan dimuatkan ke modal)
+            const readmeContentMarkdown = `
+# README: Aplikasi Suara ke Teks Minit Mesyuarat CAIRO UTM
+
+Selamat datang ke Aplikasi Suara ke Teks Minit Mesyuarat CAIRO UTM! Aplikasi web ini direka untuk membantu anda merekod dan menjana minit mesyuarat secara efisien menggunakan teknologi pengecaman suara dan kecerdasan buatan.
+
+---
+
+## ✨ Ciri-Ciri Utama
+
+* **Rakaman Pintar & Berterusan:** Sesi rakaman kini akan dimulakan semula secara automatik jika terhenti akibat had masa pelayar atau tempoh senyap. Transkrip akan disimpan dan disambung secara automatik sehinggalah anda menekan butang 'Hentikan Rakaman'.
+* **Pilihan Bahasa:** Jana minit dalam Bahasa Malaysia atau English.
+* **Transkripsi Suara ke Teks:** Merakam ucapan anda secara *real-time*.
+* **Input Transkrip Manual:** Menampal atau menaip transkrip sedia ada.
+* **Penjanaan Tajuk & Agenda Automatik:** AI menjana tajuk dan agenda mesyuarat berdasarkan kandungan perbincangan.
+* **Pengesanan Kehadiran Pintar:** AI mengesan nama yang disebut dalam transkrip untuk mengisi senarai kehadiran secara automatik.
+* **Penjanaan Minit AI Profesional:** AI memproses transkripsi menjadi minit mesyuarat profesional dengan format penomboran bertingkat (1.1, 1.2, dst.) dan versi WhatsApp yang kemas.
+* **Salin & Muat Turun:** Pelbagai pilihan untuk menyalin atau memuat turun output. Fail Word (.doc) dan Rich Text Format (.rtf) yang dimuat turun tidak mengandungi logo.
+
+---
+
+## 🚀 Cara Menggunakan
+
+### Pilihan 1: Rakaman Suara
+
+1.  **Pilih Bahasa:** Klik butang **Bahasa Malaysia** atau **English**.
+2.  **Isi Butiran (Pilihan):** Anda boleh biarkan medan "Tajuk" dan "Ahli Hadir" kosong untuk dijana secara automatik. Medan **Tempat** juga boleh diisi.
+3.  **Mula Merakam:** Klik butang **"Mula Rakaman"**. Berikan kebenaran akses mikrofon. Rakaman akan berjalan secara berterusan.
+4.  **Hentikan Rakaman:** Klik butang yang sama ("Merakam...") untuk berhenti secara manual.
+5.  **Lihat Minit:** Tunggu AI memproses transkripsi. Minit akan dipaparkan.
+
+### Pilihan 2: Transkrip Manual
+
+1.  **Pilih Bahasa:** Klik butang **Bahasa Malaysia** atau **English**.
+2.  **Isi Butiran (Pilihan):** Sama seperti di atas.
+3.  **Masukkan Transkrip:** Tampal transkrip anda.
+4.  **Jana Minit:** Klik butang **"Jana Minit dari Teks"**.
+5.  **Lihat Minit:** Tunggu AI memproses transkripsi.
+
+### Pilihan Eksport/Kongsi
+
+Gunakan butang di bahagian bawah untuk menyalin atau memuat turun output yang anda perlukan. Pilihan **.rtf** disyorkan untuk keserasian terbaik dengan Microsoft Word.
+
+---
+
+## ⚠️ Perhatian
+
+* **Akses Mikrofon:** Diperlukan hanya untuk rakaman suara.
+* **Sambungan Internet:** Diperlukan untuk penjanaan minit oleh AI.
+* **Format .doc:** Fail yang dimuat turun adalah HTML. Word mungkin memaparkan amaran keserasian.
+
+---
+
+## 🏛️ Hak Cipta
+
+&copy; 2025 CAIRO UTM. Hak Cipta Terpelihara.
+            `;
+
+            // --- Logik Pilihan Bahasa ---
+            function setLanguage(lang) {
+                selectedLanguage = lang;
+                if (recognition) {
+                    recognition.lang = lang; // Tukar bahasa pengecaman suara
+                }
+                if (lang === 'ms-MY') {
+                    langBmBtn.classList.add('active', 'bg-indigo-600', 'text-white');
+                    langBmBtn.classList.remove('bg-gray-300', 'text-gray-700');
+                    langEnBtn.classList.remove('active', 'bg-indigo-600', 'text-white');
+                    langEnBtn.classList.add('bg-gray-300', 'text-gray-700');
+                } else { // 'en-US'
+                    langEnBtn.classList.add('active', 'bg-indigo-600', 'text-white');
+                    langEnBtn.classList.remove('bg-gray-300', 'text-gray-700');
+                    langBmBtn.classList.remove('active', 'bg-indigo-600', 'text-white');
+                    langBmBtn.classList.add('bg-gray-300', 'text-gray-700');
+                }
+            }
+            langBmBtn.addEventListener('click', () => setLanguage('ms-MY'));
+            langEnBtn.addEventListener('click', () => setLanguage('en-US'));
+
+
+            // --- Fungsi untuk memformat minit mesyuarat menggunakan AI (untuk rich text) ---
+            const formatMeetingMinutesWithAI = async (language) => {
+                showMessage('Memproses minit mesyuarat dengan AI... Sila tunggu.');
+                loadingSpinner.classList.remove('hidden');
+                meetingMinutesOutputDiv.innerHTML = '<p class="text-center italic">Memproses...</p>';
+
+                let title = meetingTitleInput.value.trim();
+                const date = meetingDateInput.value;
+                const time = meetingTimeInput.value;
+                const venue = meetingVenueInput.value.trim();
+                const manualAttendees = attendeesInput.value.trim();
+                
+                const meetingDateFormatted = date ? new Date(date).toLocaleDateString(language, { year: 'numeric', month: 'long', day: 'numeric' }) : 'Tidak Dinyatakan';
+                const meetingTimeFormatted = time || 'Tidak Dinyatakan';
+                
+                const rawTranscript = fullTranscript.trim();
+
+                if (!rawTranscript) {
+                    meetingMinutesOutputDiv.innerHTML = 'Tiada transkripsi untuk diproses oleh AI.';
+                    showMessage('Tiada transkripsi yang direkodkan untuk dijana minit.');
+                    loadingSpinner.classList.add('hidden');
+                    return;
+                }
+                
+                if (!title) {
+                    title = language === 'ms-MY'
+                        ? "[AI, sila jana tajuk yang ringkas dan sesuai berdasarkan kandungan transkrip di bawah.]"
+                        : "[AI, please generate a brief and suitable title based on the transcript content below.]";
+                }
+                
+                 const attendanceInstruction = manualAttendees 
+                    ? `Gunakan senarai ini: ${manualAttendees}.` 
+                    : language === 'ms-MY'
+                        ? `[AI, sila ekstrak semua nama individu dari transkrip. Senaraikan nama unik menggunakan nombor (1., 2., dst.). Letakkan senarai nama satu tab ke dalam. PENTING: Pastikan tiada baris kosong di antara setiap nama.]`
+                        : `[AI, please extract all individual names mentioned in the transcript. List the unique names using numbers (1., 2., etc.). Indent the list of names by one tab. IMPORTANT: Ensure there are no blank lines between each name.]`;
+                
+                const currentDate = new Date().toLocaleDateString(language);
+                
+                const promptMalay = `Tugasan: Anda adalah pembantu maya yang pakar dalam menyediakan minit mesyuarat. Berdasarkan transkripsi mentah di bawah, sila formatkan ia menjadi minit mesyuarat profesional dalam Bahasa Melayu. Patuhi SEMUA arahan format berikut dengan TEPAT.
+
+ARAHAN KRITIKAL:
+1.  **Format Nama:** SEMUA nama orang mesti dalam format *Title Case* (cth: 'Nurul Nadzinah binti Miran Han'), BUKAN 'nurul nadzinah binti miran han' ATAU 'NURUL NADZINAH BINTI MIRAN HAN'. Setiap pangkal nama mesti huruf besar. Perkataan khas seperti 'bin', 'binti', 'bte' mesti kekal dalam huruf kecil. Nama seperti 'shapiaini@abd.razak' perlu diformat sebagai 'Shapiaini@Abd. Razak'.
+2.  **Jarak Baris & Format:** Patuhi arahan ini dengan teliti untuk setiap bahagian.
+
+Konteks Tambahan: Tarikh hari ini ialah ${new Date().toLocaleDateString('ms-MY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}. Jika ada rujukan kepada hari (cth: "Jumaat ini"), sila tukarkan kepada tarikh sebenar.
+
+# MINIT MESYUARAT
+
+**Tajuk Mesyuarat:** ${title}
+**Tarikh:** ${meetingDateFormatted}
+**Masa:** ${meetingTimeFormatted}
+**Tempat:** ${venue || 'Tidak Dinyatakan'}
+**Kehadiran:**
+    ${attendanceInstruction}
+
+## Agenda Mesyuarat
+[AI, sila senaraikan agenda utama. Gunakan senarai bernombor. Setiap item agenda mesti satu baris teks ringkas. KRITIKAL: JANGAN sesekali letak baris kosong di antara setiap item agenda.]
+
+## Perkara Perbincangan Utama
+[AI, ringkaskan perbincangan. KRITIKAL: JANGAN guna *bullet points*. Gunakan format nombor bertingkat (nested).
+ARAHAN FORMAT PERBINCANGAN:
+- Setiap butiran mesti berada di baris baharu.
+- Tajuk utama (cth. 1., 2.) mesti ditebalkan. Contoh: **1. Topik Utama Satu**.
+- Mesti ada SATU baris kosong SEBELUM setiap tajuk utama.]
+
+## Perkara Tindakan
+[AI, Jika ada, senaraikan dalam format jadual Markdown dengan lajur: "Bil.", "Perkara Tindakan", "Bertanggungjawab", "Tarikh Akhir". Jika tiada, nyatakan "Tiada perkara tindakan dicatat."]
+
+## Penutup
+[AI, sediakan ringkasan penutup.]
+
+Disediakan Oleh:
+[AI, sila cadangkan SATU nama dari senarai kehadiran di sini sebagai pencatat minit.]
+
+Tarikh Disediakan:
+${currentDate}
+
+---
+**Minit Mesyuarat dijana oleh Aplikasi Suara ke Teks Minit Mesyuarat, CAIRO UTM.**
+
+Transkripsi Mentah Perbincangan:
+${rawTranscript}`;
+                
+                const promptEnglish = `Task: You are an expert virtual assistant for preparing meeting minutes. Based on the raw transcript below, format it into professional meeting minutes in English. Adhere to ALL of the following format instructions EXACTLY.
+
+CRITICAL INSTRUCTIONS:
+1.  **Name Formatting:** ALL personal names must be in *Title Case* (e.g., 'John bin Doe'), NOT 'john bin doe' OR 'JOHN BIN DOE'. Each part of the name must be capitalized. Special words like 'bin', 'binti', 'bte' must remain lowercase. A name like 'shapiaini@abd.razak' should be formatted as 'Shapiaini@Abd. Razak'.
+2.  **Line Spacing & Formatting:** Follow these instructions carefully for each section.
+
+Additional Context: Today's date is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}. If there are references to days (e.g., "this Friday"), please convert them to the actual date.
+
+# MINUTES OF MEETING
+
+**Meeting Title:** ${title}
+**Date:** ${meetingDateFormatted}
+**Time:** ${meetingTimeFormatted}
+**Venue:** ${venue || 'Not Specified'}
+**Attendees:**
+    ${attendanceInstruction}
+
+## Meeting Agenda
+[AI, please list the main agenda. Use a numbered list. Each agenda item must be a single short line of text. CRITICAL: NEVER put blank lines between agenda items.]
+
+## Key Discussion Points
+[AI, summarize the discussion. CRITICAL: DO NOT use *bullet points*. Use a nested numbered list format.
+DISCUSSION FORMATTING INSTRUCTIONS:
+- Each item must be on a new line.
+- Main topics (e.g., 1., 2.) must be bold. Example: **1. Main Topic One**.
+- There must be ONE blank line BEFORE each main topic.]
+
+## Action Items
+[AI, if any, list them in a Markdown table with columns: "No.", "Action Item", "Responsible", "Deadline". If none, state "No action items were recorded."]
+
+## Closing
+[AI, provide a closing summary.]
+
+Prepared By:
+[AI, please suggest ONE name from the attendee list here as the minute taker.]
+
+Date Prepared:
+${currentDate}
+
+---
+**Minutes generated by the Speech-to-Text Meeting Minutes Application, CAIRO UTM.**
+
+Raw Discussion Transcript:
+${rawTranscript}`;
+
+                const prompt = language === 'ms-MY' ? promptMalay : promptEnglish;
+
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = { contents: chatHistory };
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                let retries = 0;
+                const maxRetries = 5;
+                const initialDelay = 1000;
+
+                while (retries < maxRetries) {
+                    try {
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+
+                        const result = await response.json();
+                        if (result.candidates && result.candidates.length > 0 &&
+                            result.candidates[0].content && result.candidates[0].content.parts &&
+                            result.candidates[0].content.parts.length > 0) {
+                            aiGeneratedMarkdownMinutes = result.candidates[0].content.parts[0].text;
+                            
+                            // Menggunakan marked.js untuk menukar Markdown kepada HTML
+                            meetingMinutesOutputDiv.innerHTML = marked.parse(aiGeneratedMarkdownMinutes);
+
+                            showMessage('Minit mesyuarat telah berjaya dijana oleh AI.');
+                            loadingSpinner.classList.add('hidden');
+                            return;
+                        } else {
+                            throw new Error('Struktur respons AI tidak dijangka atau kandungan tiada.');
+                        }
+                    } catch (error) {
+                        console.error('Ralat API Gemini:', error);
+                        retries++;
+                        if (retries < maxRetries) {
+                            const delay = initialDelay * Math.pow(2, retries - 1);
+                            await new Promise(res => setTimeout(res, delay));
+                            showMessage(`Cuba semula... (${retries}/${maxRetries})`);
+                        } else {
+                            meetingMinutesOutputDiv.innerHTML = 'Gagal menjana minit mesyuarat. Sila cuba lagi.';
+                            showMessage('Ralat: Gagal menjana minit mesyuarat dari AI.');
+                            loadingSpinner.classList.add('hidden');
+                        }
+                    }
+                }
+            };
+
+            // --- Fungsi untuk memformat minit mesyuarat untuk WhatsApp ---
+            const formatMeetingMinutesForWhatsApp = (language) => {
+                let minutesContent = aiGeneratedMarkdownMinutes.trim();
+                if (!minutesContent) {
+                    whatsappMinutesOutputDiv.innerHTML = 'Tiada minit untuk diformat WhatsApp.';
+                    aiGeneratedWhatsappText = 'Tiada minit untuk diformat WhatsApp.';
+                    return;
+                }
+                
+                const isMalay = language === 'ms-MY';
+                
+                const getEmojiNumber = (n) => {
+                    const emojis = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'];
+                    return String(n).split('').map(digit => emojis[parseInt(digit, 10)]).join('');
+                };
+
+                const labels = {
+                    header: isMalay ? '*MINIT MESYUARAT* 📝' : '*MINUTES OF MEETING* 📝',
+                    title: isMalay ? 'Tajuk Mesyuarat' : 'Meeting Title',
+                    date: isMalay ? 'Tarikh' : 'Date',
+                    time: isMalay ? 'Masa' : 'Time',
+                    venue: isMalay ? 'Tempat' : 'Venue',
+                    attendees: isMalay ? 'Kehadiran' : 'Attendees',
+                    agenda: isMalay ? 'Agenda Mesyuarat' : 'Meeting Agenda',
+                    discussion: isMalay ? 'Perkara Perbincangan Utama' : 'Key Discussion',
+                    actions: isMalay ? 'Perkara Tindakan' : 'Action Items',
+                    pic: 'PIC',
+                    deadline: isMalay ? 'Tarikh Akhir' : 'Deadline',
+                    closing: isMalay ? 'Penutup' : 'Closing',
+                    preparedBy: isMalay ? 'Disediakan Oleh' : 'Prepared By',
+                    datePrepared: isMalay ? 'Tarikh Disediakan' : 'Date Prepared',
+                    footer: isMalay ? '*Minit Mesyuarat dijana oleh Aplikasi Suara ke Teks Minit Mesyuarat, CAIRO UTM.*' : '*Minutes generated by the Speech-to-Text Meeting Minutes Application, CAIRO UTM.*'
+                };
+                
+                const extractBlock = (start, end, flags = 's') => (minutesContent.match(new RegExp(`${start}\\s*([\\s\\S]*?)(?=${end}|$)`, flags)) || [])[1]?.trim() || '';
+
+                const title = (minutesContent.match(/^\*\*Tajuk Mesyuarat:\*\*\s*(.*)$/im) || [])[1]?.trim();
+                const date = (minutesContent.match(/^\*\*Tarikh:\*\*\s*(.*)$/im) || [])[1]?.trim();
+                const time = (minutesContent.match(/^\*\*Masa:\*\*\s*(.*)$/im) || [])[1]?.trim();
+                const venue = (minutesContent.match(/^\*\*Tempat:\*\*\s*(.*)$/im) || [])[1]?.trim();
+
+                const attendees = extractBlock(`\\*\\*${labels.attendees}:\\*\\*`, '##')
+                    .replace(/\s*\d+\.\s/g, '\n')
+                    .trim()
+                    .split('\n')
+                    .filter(name => name.trim() !== '')
+                    .map((name, index) => `${getEmojiNumber(index + 1)} ${name.trim()}`)
+                    .join('\n');
+                
+                let whatsappText = `${labels.header}\n\n`;
+                if(title) whatsappText += `*${labels.title}:* ${title}\n`;
+                if(date) whatsappText += `*${labels.date}:* 📅 ${date}\n`;
+                if(time) whatsappText += `*${labels.time}:* ⏰ ${time}\n`;
+                if(venue) whatsappText += `*${labels.venue}:* 📍 ${venue}\n`;
+                if(attendees) whatsappText += `*${labels.attendees}:* 👥\n${attendees}\n\n`;
+
+                const agendaMatch = extractBlock(`## ${labels.agenda}`, '##');
+                if (agendaMatch) {
+                    let agendaCounter = 0;
+                    const formattedAgenda = agendaMatch.replace(/^\s*\d+\.\s/gm, () => {
+                        const emoji = getEmojiNumber(agendaCounter + 1);
+                        agendaCounter++;
+                        return `${emoji} `;
+                    }).trim();
+                    whatsappText += `*${labels.agenda}:* 📑\n${formattedAgenda}\n\n`;
+                }
+
+                const discussionMatch = extractBlock(`## ${labels.discussion}`, '##');
+                if (discussionMatch) {
+                    whatsappText += `*${labels.discussion}:* 🗣️\n`;
+                    let discussionPoints = discussionMatch
+                        .replace(/\*\*(.*?)\*\*/g, '*$1*') // convert markdown bold to whatsapp bold
+                        .replace(/^\s+/gm, '') // remove leading space
+                        .trim();
+                    // Add space between main topics
+                    discussionPoints = discussionPoints.replace(/\n(\*\d+\..*?\*)/g, '\n\n$1');
+                    whatsappText += `${discussionPoints}\n\n`;
+                }
+
+                const actionItemsMatch = extractBlock(`## ${labels.actions}`, '##');
+                if (actionItemsMatch && actionItemsMatch.includes('|')) {
+                    whatsappText += `*${labels.actions}:* ✅\n`;
+                    const tableRows = actionItemsMatch.split('\n').filter(row => row.trim().startsWith('|') && !row.includes('---'));
+                    tableRows.forEach(row => {
+                        const cells = row.split('|').map(cell => cell.trim()).filter(Boolean);
+                        if (cells.length > 2) {
+                            whatsappText += `${cells[0]} ${cells[1]} (🧑‍💼 ${labels.pic}: ${cells[2]}) (🗓️ ${labels.deadline}: ${cells[3] || 'N/A'})\n`;
+                        }
+                    });
+                    whatsappText += '\n';
+                }
+
+                const conclusionMatch = extractBlock(`## ${labels.closing}`, 'Disediakan Oleh|Prepared By');
+                if (conclusionMatch) {
+                    whatsappText += `*${labels.closing}:* 🏁\n${conclusionMatch}\n\n`;
+                }
+                
+                const preparedBy = (minutesContent.match(new RegExp(`^${labels.preparedBy}:\\s*(.*)$`, 'im')) || [])[1]?.trim() || '';
+                const datePrepared = (minutesContent.match(new RegExp(`^${labels.datePrepared}:\\s*(.*)$`, 'im')) || [])[1]?.trim() || '';
+
+                if(preparedBy) whatsappText += `*${labels.preparedBy}:* ${preparedBy}\n`;
+                if(datePrepared) whatsappText += `*${labels.datePrepared}:* ${datePrepared}\n\n`;
+
+                whatsappText += `${labels.footer}`;
+
+                aiGeneratedWhatsappText = whatsappText;
+                whatsappMinutesOutputDiv.innerHTML = whatsappText.replace(/\n/g, '<br>');
+            };
+
+            // --- Fungsi Utiliti ---
+            function setupActionButtons(enabled) {
+                [copyTranscriptBtn, copyMinutesBtn, downloadMinutesBtn, downloadRtfBtn, whatsappShareBtn].forEach(btn => btn.disabled = !enabled);
+                copyTranscriptBtn.disabled = !fullTranscript.trim(); // Transkrip sentiasa boleh disalin jika ada
+            }
+
+            // --- PENYELESAIAN AKHIR UNTUK WORD & SALIN ---
+            function getWordFriendlyHtml(sourceElement) {
+                const tempDiv = sourceElement.cloneNode(true);
+                // Guna <p> dengan gaya khusus untuk setiap baris, yang Word lebih faham
+                tempDiv.querySelectorAll('p, li, h1, h2').forEach(el => {
+                    el.style.margin = "0";
+                    el.style.padding = "0";
+                    if (el.tagName !== 'LI') {
+                       el.style.marginBottom = '12pt';
+                    }
+                });
+                return tempDiv.innerHTML;
+            }
+            
+            function copyHtmlToClipboard(elementId) {
+                const sourceElement = document.getElementById(elementId);
+                if (!sourceElement || sourceElement.innerHTML.trim() === '' || sourceElement.innerHTML.includes('Memproses...')) {
+                    showMessage('Tiada minit untuk disalin.');
+                    return;
+                }
+
+                const listener = function(ev) {
+                    ev.preventDefault();
+                    const wordFriendlyHtml = getWordFriendlyHtml(sourceElement);
+                    ev.clipboardData.setData('text/html', wordFriendlyHtml);
+                    ev.clipboardData.setData('text/plain', sourceElement.innerText);
+                };
+
+                document.addEventListener('copy', listener);
+                document.execCommand('copy');
+                document.removeEventListener('copy', listener);
+                showMessage('Minit berjaya disalin (dioptimumkan untuk Word)!');
+            }
+
+
+            function copyToClipboard(text) {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-9999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showMessage('Berjaya disalin!');
+                } catch (err) {
+                    showMessage('Gagal menyalin.');
+                }
+                document.body.removeChild(textArea);
+            }
+
+            copyTranscriptBtn.addEventListener('click', () => {
+                if (resultDisplay.value.trim()) {
+                    copyToClipboard(resultDisplay.value);
+                } else {
+                    showMessage('Tiada transkrip untuk disalin.');
+                }
+            });
+
+            copyMinutesBtn.addEventListener('click', () => {
+                copyHtmlToClipboard('meetingMinutesOutput');
+            });
+
+            whatsappShareBtn.addEventListener('click', () => {
+                if (aiGeneratedWhatsappText.trim()) {
+                    copyToClipboard(aiGeneratedWhatsappText);
+                } else {
+                    showMessage('Tiada minit WhatsApp untuk disalin.');
+                }
+            });
+
+            // --- Fungsi muat turun yang dikemas kini ---
+            function downloadAs(format) {
+                if (!aiGeneratedMarkdownMinutes.trim() || aiGeneratedMarkdownMinutes.includes('Memproses...')) {
+                    showMessage('Tiada minit untuk dimuat turun.');
+                    return;
+                }
+                const titleMatch = aiGeneratedMarkdownMinutes.match(/^\*\*T(?:ajuk Mesyuarat|itle):\*\*\s*(.*)/im);
+                const meetingTitle = titleMatch ? titleMatch[1].trim() : "Minit Mesyuarat";
+                const date = new Date().toISOString().slice(0, 10);
+                const fileName = `${meetingTitle.replace(/[^a-zA-Z0-9]/g, '_')}_${date}`;
+                
+                let blob;
+                if (format === 'doc') {
+                    const content = getWordFriendlyHtml(meetingMinutesOutputDiv);
+                    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${meetingTitle}</title></head><body>${content}</body></html>`;
+                    blob = new Blob([html], { type: 'application/msword;charset=utf-8' });
+                } else if (format === 'rtf') {
+                    const content = convertHtmlToRtf(meetingMinutesOutputDiv.innerHTML);
+                    blob = new Blob([content], { type: 'application/rtf;charset=utf-8' });
+                }
+
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `${fileName}.${format}`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showMessage(`Minit berjaya dimuat turun sebagai "${fileName}.${format}".`);
+            }
+
+            downloadMinutesBtn.addEventListener('click', () => downloadAs('doc'));
+            downloadRtfBtn.addEventListener('click', () => downloadAs('rtf'));
+            
+            function convertHtmlToRtf(html) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+
+                let rtf = '{\\rtf1\\ansi\\deff0\n';
+                rtf += '{\\fonttbl{\\f0 Arial;}}\n';
+                
+                function processNode(node) {
+                    let text = '';
+                    node.childNodes.forEach(child => {
+                        if (child.nodeType === 3) { // Text node
+                            text += escapeRtf(child.textContent);
+                        } else if (child.nodeType === 1) { // Element node
+                            let prefix = '', suffix = '';
+                            switch(child.tagName.toLowerCase()) {
+                                case 'h1': prefix = '{\\pard\\qc\\b\\fs48 '; suffix = '\\par}'; break;
+                                case 'h2': prefix = '{\\pard\\b\\fs32 '; suffix = '\\par\\par}'; break;
+                                case 'p': prefix = '{\\pard\\fs24 '; suffix = '\\par}'; break;
+                                case 'strong': case 'b': prefix = '{\\b '; suffix = '}'; break;
+                                case 'em': case 'i': prefix = '{\\i '; suffix = '}'; break;
+                                case 'ol': case 'ul': suffix = '\\par'; break;
+                                case 'li': prefix = '{\\pard\\fi360\\li720\\fs24 '; suffix = '\\par}'; break;
+                            }
+                            text += prefix + processNode(child) + suffix;
+                        }
+                    });
+                    return text;
+                }
+
+                rtf += processNode(tempDiv);
+                rtf += '}';
+                return rtf;
+            }
+            
+            function escapeRtf(text) {
+                return text.replace(/\\/g, '\\\\').replace(/{/g, '\\{').replace(/}/g, '\\}').replace(/\n/g, '\\par\n');
+            }
+
+
+            // --- Logik untuk Input Transkrip Manual ---
+            generateFromTextBtn.addEventListener('click', async () => {
+                const manualText = manualTranscriptInput.value.trim();
+                if (!manualText) {
+                    showMessage('Sila masukkan transkrip dalam kotak teks terlebih dahulu.');
+                    return;
+                }
+                fullTranscript = manualText;
+                resultDisplay.value = fullTranscript;
+                await formatMeetingMinutesWithAI(selectedLanguage);
+                formatMeetingMinutesForWhatsApp(selectedLanguage);
+                setupActionButtons(true);
+            });
+
+
+            // Semak jika pelayar menyokong Web Speech API
+            if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+                recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                recognition.lang = selectedLanguage;
+                recognition.continuous = true;
+                recognition.interimResults = true;
+
+                recognition.onstart = () => {
+                    isRecording = true;
+                    buttonText.textContent = 'Merakam... Klik untuk Berhenti';
+                    microphoneIcon.classList.add('recording');
+                    showMessage('');
+                    // Only clear transcript on the very first start
+                    if (userStoppedRecording) { 
+                        // This case should not happen if logic is correct, but as a safeguard
+                        userStoppedRecording = false; 
+                    }
+                };
+
+                recognition.onresult = (event) => {
+                    let interimTranscript = '';
+                    let finalTranscriptChunk = '';
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscriptChunk += transcript + ' ';
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+                    fullTranscript += finalTranscriptChunk;
+                    resultDisplay.value = fullTranscript + interimTranscript;
+                    if (fullTranscript.trim()) copyTranscriptBtn.disabled = false;
+                };
+
+                recognition.onend = async () => {
+                    if (userStoppedRecording) {
+                        // This was a manual stop by the user
+                        isRecording = false;
+                        buttonText.textContent = 'Mula Rakaman';
+                        microphoneIcon.classList.remove('recording');
+                        if (!fullTranscript.trim()) {
+                            resultDisplay.value = 'Tiada ucapan dikesan.';
+                            showMessage('Rakaman selesai, tiada ucapan dikesan.');
+                        } else {
+                            resultDisplay.value = fullTranscript.trim();
+                            await formatMeetingMinutesWithAI(selectedLanguage);
+                            formatMeetingMinutesForWhatsApp(selectedLanguage);
+                            setupActionButtons(true);
+                        }
+                    } else if (isRecording) {
+                        // This was an automatic stop, so restart it
+                        showMessage('Sesi rakaman dimulakan semula secara automatik...', 'info');
+                        setTimeout(() => recognition.start(), 250); // Restart after a short delay
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Ralat pengiktirafan ucapan:', event.error);
+                    let errorMessages = {
+                        'not-allowed': 'Akses mikrofon ditolak. Sila benarkan akses di tetapan pelayar.',
+                        'no-speech': 'Tiada ucapan dikesan. Sesi akan dimulakan semula.',
+                        'audio-capture': 'Tiada mikrofon dikesan atau sedang digunakan.'
+                    };
+                    showMessage(errorMessages[event.error] || 'Berlaku ralat. Sesi akan dimulakan semula.');
+                    // onend will be called automatically after an error, which will handle the restart logic
+                };
+
+                startStopBtn.addEventListener('click', () => {
+                    if (isRecording) {
+                        userStoppedRecording = true;
+                        recognition.stop();
+                    } else {
+                        userStoppedRecording = false;
+                        fullTranscript = ''; // Clear transcript only on manual start
+                        resultDisplay.value = 'Mendengar...';
+                        meetingMinutesOutputDiv.innerHTML = 'Minit mesyuarat akan diformatkan di sini oleh AI.';
+                        whatsappMinutesOutputDiv.innerHTML = 'Versi ringkas minit untuk WhatsApp akan dijana di sini.';
+                        setupActionButtons(false);
+                        recognition.start();
+                    }
+                });
+
+            } else {
+                showMessage('Maaf, pelayar anda tidak menyokong Web Speech API.');
+                startStopBtn.disabled = true;
+            }
+
+            function showMessage(msg, type = 'error') {
+                messageBox.textContent = msg;
+                messageBox.classList.remove('hidden', 'text-red-600', 'text-blue-600');
+                if (type === 'error') {
+                    messageBox.classList.add('text-red-600');
+                } else {
+                    messageBox.classList.add('text-blue-600');
+                }
+                if (!msg) {
+                    messageBox.classList.add('hidden');
+                }
+            }
+
+            // --- Logik Modal Manual Pengguna ---
+            userManualBtn.addEventListener('click', () => {
+                userManualContent.innerHTML = marked.parse(readmeContentMarkdown);
+                userManualModal.classList.remove('hidden');
+            });
+            closeModalBtn.addEventListener('click', () => userManualModal.classList.add('hidden'));
+            userManualModal.addEventListener('click', (event) => {
+                if (event.target === userManualModal) userManualModal.classList.add('hidden');
+            });
+        };
+    </script>
+</body>
+</html>
+
